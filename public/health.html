@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Databook Health Check</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      color: white;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .status-box {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .status-header {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 10px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #eee;
+    }
+    .status-icon {
+      font-size: 32px;
+    }
+    .status-title {
+      font-size: 24px;
+      font-weight: 600;
+      margin: 0;
+    }
+    .record-count {
+      background: #e8f5e9;
+      color: #2e7d32;
+      padding: 8px 12px;
+      border-radius: 6px;
+      display: inline-block;
+      margin-top: 10px;
+    }
+    .error-icon { color: #f44336; }
+    .success-icon { color: #4caf50; }
+    .info-section {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 15px;
+      margin-top: 15px;
+    }
+    .info-label {
+      font-weight: 600;
+      color: #495057;
+    }
+    .info-value {
+      color: #212529;
+      font-family: 'Consolas', monospace;
+      word-break: break-all;
+      padding-left: 8px;
+    }
+    .refresh-btn {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      margin-top: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .refresh-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 20px;
+      color: #fff;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <h1>🏥 Health Status</h1>
+  
+  <div class="status-box">
+    <div class="status-header">
+      <span id="statusIcon" class="status-icon"></span>
+      <h2 id="statusTitle" class="status-title"></h2>
+    </div>
+    
+    <div id="recordCountBox" style="display: none;">
+      <div class="record-count">
+        📊 Total Records: <strong id="recordCount">0</strong>
+      </div>
+    </div>
+    
+    <div id="infoSection" class="info-section" style="display: none;">
+      <div class="info-label">📅 Server Time:</div>
+      <div id="serverTime" class="info-value"></div>
+      
+      <div class="info-label">📁 Database Path:</div>
+      <div id="dbPath" class="info-value"></div>
+    </div>
+    
+    <button class="refresh-btn" onclick="checkHealth()">Refresh Status</button>
+  </div>
+  
+  <a href="/" class="back-link">← Return to Databook App</a>
+
+  <script>
+    async function checkHealth() {
+      try {
+        const response = await fetch('/api/health');
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        displayStatus(data);
+      } catch (error) {
+        console.error('Health check error:', error);
+        displayError(error.message);
+      }
+    }
+
+    function displayStatus(data) {
+      const iconEl = document.getElementById('statusIcon');
+      const titleEl = document.getElementById('statusTitle');
+      const countBox = document.getElementById('recordCountBox');
+      const infoSection = document.getElementById('infoSection');
+      
+      // Determine status
+      let isHealthy = false;
+      
+      if (data.status === 'OK') {
+        isHealthy = true;
+        
+        iconEl.textContent = '✅';
+        iconEl.className = 'status-icon success-icon';
+        titleEl.textContent = 'All Systems Healthy';
+        countBox.style.display = 'block';
+        infoSection.style.display = 'block';
+      } else {
+        isHealthy = false;
+        iconEl.textContent = '⚠️';
+        iconEl.className = 'status-icon error-icon';
+        titleEl.textContent = 'Warning: Database Empty';
+        countBox.style.display = 'block';
+        infoSection.style.display = 'block';
+      }
+      
+      // Update record count
+      document.getElementById('recordCount').textContent = data.recordCount || 0;
+      
+      // Update timestamps if available
+      if (data.serverTime) {
+        document.getElementById('serverTime').textContent = new Date(data.serverTime).toLocaleString();
+      }
+      
+      if (data.databasePath) {
+        document.getElementById('dbPath').textContent = data.databasePath;
+      }
+    }
+
+    function displayError(message) {
+      const iconEl = document.getElementById('statusIcon');
+      const titleEl = document.getElementById('statusTitle');
+      
+      iconEl.textContent = '❌';
+      iconEl.className = 'status-icon error-icon';
+      titleEl.textContent = 'Server Connection Failed';
+      document.getElementById('recordCountBox').style.display = 'none';
+      document.getElementById('infoSection').style.display = 'none';
+    }
+
+    // Check health on page load
+    checkHealth();
+  </script>
+</body>
+</html>

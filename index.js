@@ -1,105 +1,318 @@
+// Databook App - Server with JSON File Persistence
 const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const fs = require('fs');
+const path = require('path');
+
 const app = express();
-const port = 3000;
+const PORT = process.env.PORT || 3000;
 
-app.get('/', (req, res) => {
-  const today = new Date().toLocaleDateString();
-  
-  res.send(`<!DOCTYPE html>
-<html>
-<head>
-<title>Databook App</title>
-<style>
-table { border-collapse: collapse; width: 100%; }
-th, td { border: 1px solid #333; padding: 8px; text-align: left; }
-tr:hover { background-color: #e6f3ff; border-left: 4px solid #2196F3; }
-tr.selected { background-color: #d4edff; border-left: 4px solid #2196F3; font-weight: bold; cursor: pointer; }
-button { padding: 8px 16px; margin: 5px; cursor: pointer; }
-</style>
-</head>
-<body>
-<h1>Welcome to Databook!</h1>
-<p>This is a simple Node.js web application.</p>
-<h2>Activity Log</h2>
-<table id="activityTable">
-<thead><tr><th>Date</th><th>Information</th></tr></thead>
-<tbody>
-<tr data-id="1"><td>${today}</td><td>Node.js server is running</td></tr>
-<tr data-id="2"><td>2024-01-01</td><td>Express framework loaded</td></tr>
-<tr data-id="3"><td>2023-06-15</td><td>Databook project initialized</td></tr>
-</tbody>
-</table>
-<div style="margin-top: 15px;">
-<button onclick="addRow()">Add</button>
-<button onclick="deleteRow()" id="btn-delete">Delete</button>
-<button onclick="editRow()">Edit</button>
-</div>
-<br><a href="/health">Check Health Status</a>
-<script>
-const rows = [
-  {id: 1, date: '${today}', info: 'Node.js server is running'},
-  {id: 2, date: '2024-01-01', info: 'Express framework loaded'},
-  {id: 3, date: '2023-06-15', info: 'Databook project initialized'}
-];
+// === Configuration ===
+const DATA_FILE = path.join(__dirname, 'data.json');
 
-let selectedRowId = null;
+// === Middleware ===
 
-function highlightRow(row) { row.classList.add('selected'); row.style.cursor = 'pointer'; }
+// Security headers (helmet)
+app.use(helmet());
 
-function unhighlightRow(row) { if (!row.classList.contains('selected')) { row.classList.remove('selected'); row.style.cursor = 'default'; } }
+// CORS - allow all origins for demo (restrict in production)
+app.use(cors());
 
-function selectRow(row) {
-  rows.forEach(r => document.querySelector(\`tr[data-id="\${r.id}]\`).classList.remove('selected'));
-  highlightRow(row);
-  selectedRowId = parseInt(row.getAttribute('data-id'));
+// Parse JSON request bodies
+app.use(express.json());
+
+// Serve static files from public directory
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'static')));
+
+// === File-Based Storage Helper Functions ===
+
+function readData() {
+  try {
+    if (fs.existsSync(DATA_FILE)) {
+      return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    }
+  } catch (err) {
+    console.error('Error reading data file:', err.message);
+  }
+  return [];
 }
 
-function deleteRow() {
-  const id = getSelectedId();
-  if (!id) { alert('You must select a row to delete'); return; }
-  
-  const row = document.querySelector(\`tr[data-id="\${id}"]\`);
-  if (row) {
-    if (confirm('Are you sure you want to delete this row?')) {
-      row.remove();
-      selectedRowId = null;
-      highlightRow(row);
-    }
+function writeData(activities) {
+  try {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(activities, null, 2));
+    return true;
+  } catch (err) {
+    console.error('Error writing data file:', err.message);
+    return false;
   }
 }
 
-function addRow() {
-  const newDate = new Date().toLocaleDateString();
-  const newRow = document.createElement('tr');
-  newRow.setAttribute('data-id', String(getSelectedId() ? parseInt(getSelectedId()) + 1 : 1));
-  newRow.innerHTML = \`<td>\${newDate}</td><td>New entry</td>\`;
-  highlightRow(newRow);
-  const tbody = document.querySelector('#activityTable tbody');
-  tbody.insertBefore(newRow, tbody.firstChild);
-}
+// === Health Check Endpoint ===
 
-function editRow() {
-  const id = getSelectedId();
-  if (!id) { alert('You must select a row to edit'); return; }
-  alert('Edit functionality for row ' + id + ' coming soon!');
-}
-
-// Add event listeners on mount
-const tbody = document.querySelector('#activityTable tbody');
-tbody.querySelectorAll('tr').forEach(row => {
-  row.onmouseover = highlightRow;
-  row.onmouseout = unhighlightRow;
-  row.onclick = function() { selectRow(this); };
+app.get('/health', (req, res) => {
+  const activities = readData();
+  
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    recordCount: activities.length,
+    databasePath: DATA_FILE,
+    uptime: process.uptime() + 's'
+  });
 });
 
-console.log('Databook App loaded. Click rows to select them.');
-</script>
-</body>
-</html>`);
+// === Activities API Endpoints ===
+
+// GET /api/activities - Get all activities
+app.get('/api/activities', (req, res) => {
+  try {
+    const activities = readData();
+    
+    // Sort by date descending (newest first)
+    activities.sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    res.json({ success: true, data: activities, count: activities.length });
+  } catch (err) {
+    console.error('Error in GET /api/activities:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error' 
+    });
+  }
 });
 
-app.get('/health', (req, res) => { res.json({ status: 'OK' }); });
-app.get('/api/data', (req, res) => { res.json({ message: 'Databook API', items: ['Welcome', 'Node.js', 'Express'], ready: true }); });
+// GET /api/activities/:id - Get activity by ID
+app.get('/api/activities/:id', (req, res) => {
+  try {
+    const activities = readData();
+    const id = parseInt(req.params.id);
+    
+    // Find and return the activity
+    const activity = activities.find(a => a.id === id);
+    
+    if (!activity) {
+      return res.status(404).json({ 
+        success: false, 
+        message: `Activity with ID ${id} not found` 
+      });
+    }
+    
+    res.json({ success: true, data: activity });
+  } catch (err) {
+    console.error('Error in GET /api/activities/:id:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error' 
+    });
+  }
+});
 
-console.log('Server running at http://localhost:' + port);
-app.listen(port);
+// POST /api/activities - Create new activity
+app.post('/api/activities', (req, res) => {
+  try {
+    const activities = readData();
+    const { date, information } = req.body;
+    
+    // Validate inputs
+    if (!date || !information) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Date and information are required' 
+      });
+    }
+    
+    // Generate unique ID (incremental)
+    const highestId = activities.length > 0 ? Math.max(...activities.map(a => a.id)) : 0;
+    const newId = highestId + 1;
+    
+    // Create new activity object
+    const newActivity = {
+      id: newId,
+      date,
+      information
+    };
+    
+    // Add to array and persist
+    activities.push(newActivity);
+    
+    if (!writeData(activities)) {
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Failed to save data' 
+      });
+    }
+    
+    // Sort after adding (newest first)
+    activities.sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    res.status(201).json({ 
+      success: true, 
+      message: 'Activity created',
+      data: newActivity
+    });
+  } catch (err) {
+    console.error('Error in POST /api/activities:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error' 
+    });
+  }
+});
+
+// PUT /api/activities/:id - Update activity
+app.put('/api/activities/:id', (req, res) => {
+  try {
+    const activities = readData();
+    const id = parseInt(req.params.id);
+    const { date, information } = req.body;
+    
+    // Validate inputs
+    if (!date || !information) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Date and information are required' 
+      });
+    }
+    
+    // Find activity by ID
+    const activityIndex = activities.findIndex(a => a.id === id);
+    
+    if (activityIndex === -1) {
+      return res.status(404).json({ 
+        success: false, 
+        message: `Activity with ID ${id} not found` 
+      });
+    }
+    
+    // Update the activity
+    activities[activityIndex].date = date;
+    activities[activityIndex].information = information;
+    
+    if (!writeData(activities)) {
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Failed to save data' 
+      });
+    }
+    
+    // Sort after update
+    activities.sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    res.json({ 
+      success: true, 
+      message: 'Activity updated',
+      data: activities[activityIndex]
+    });
+  } catch (err) {
+    console.error('Error in PUT /api/activities/:id:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error' 
+    });
+  }
+});
+
+// DELETE /api/activities/:id - Delete activity
+app.delete('/api/activities/:id', (req, res) => {
+  try {
+    const activities = readData();
+    const id = parseInt(req.params.id);
+    
+    // Find and remove the activity
+    const activityIndex = activities.findIndex(a => a.id === id);
+    
+    if (activityIndex === -1) {
+      return res.status(404).json({ 
+        success: false, 
+        message: `Activity with ID ${id} not found` 
+      });
+    }
+    
+    const deletedActivity = activities.splice(activityIndex, 1)[0];
+    
+    if (!writeData(activities)) {
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Failed to save data' 
+      });
+    }
+    
+    res.json({ 
+      success: true, 
+      message: `Activity deleted`,
+      deletedId: id
+    });
+  } catch (err) {
+    console.error('Error in DELETE /api/activities/:id:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error' 
+    });
+  }
+});
+
+// === Serve Index for All Routes ===
+
+// Catch-all route to serve the main page for non-API routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// === Start Server ===
+
+const server = app.listen(PORT, () => {
+  console.log(`🚀 Databook server running on http://localhost:${PORT}`);
+  console.log(`   - Health check: http://localhost:${PORT}/health`);
+  console.log(`   - Activities API: http://localhost:${PORT}/api/activities`);
+  console.log(`   - Data stored in: ${DATA_FILE}`);
+});
+
+// === Graceful Shutdown ===
+
+const gracefulShutdown = (signal) => {
+  console.log(`${signal} received. Shutting down gracefully...`);
+  
+  // Save any pending writes before exiting
+  const activities = readData();
+  writeData(activities);
+  
+  server.close(() => {
+    console.log('Server closed.');
+    process.exit(0);
+  });
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// === Error Handling Middleware ===
+
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  
+  // In production, hide sensitive details
+  if (process.env.NODE_ENV === 'production') {
+    res.status(err.status || 500).json({
+      success: false,
+      message: 'Something went wrong',
+      code: process.env.DEBUG ? err.message : undefined
+    });
+  } else {
+    // Development - show full error
+    res.status(err.status || 500).json({
+      success: false,
+      message: err.message || 'Internal server error'
+    });
+  }
+});
+
+// === 404 Handler ===
+
+app.use((req, res) => {
+  res.status(404).json({ 
+    success: false, 
+    message: `Route ${req.method} ${req.originalUrl} not found` 
+  });
+});
