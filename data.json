@@ -5,8 +5,18 @@
     "information": "Christmas dinner with family"
   },
   {
-    "id": 2,
-    "date": "2024-12-26",
-    "information": "Boxing day sales"
+    "id": 3,
+    "date": "9/22/2026",
+    "information": "This is a test"
+  },
+  {
+    "id": 4,
+    "date": "9/22/2026",
+    "information": "A new entry"
+  },
+  {
+    "id": 5,
+    "date": "9/22/2026",
+    "information": "My new entry is cool."
   }
 ]

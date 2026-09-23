@@ -13,9 +13,6 @@ const DATA_FILE = path.join(__dirname, 'data.json');
 
 // === Middleware ===
 
-// Security headers (helmet)
-app.use(helmet());
-
 // CORS - allow all origins for demo (restrict in production)
 app.use(cors());
 
@@ -24,7 +21,6 @@ app.use(express.json());
 
 // Serve static files from public directory
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.static(path.join(__dirname, 'static')));
 
 // === File-Based Storage Helper Functions ===
 

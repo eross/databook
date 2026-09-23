@@ -54,21 +54,25 @@
     tr:hover {
       background-color: #e8f4fd !important;
       border-left: 4px solid #3b82f6 !important;
-      transform: translateX(2px);
-      transition: all 0.2s ease;
+      /* Removed transform to avoid transition conflicts */
     }
     tr.selected {
       background-color: #d1ecf1 !important;
       border-left: 4px solid #0d6efd !important;
       font-weight: 600;
     }
+    tr.hovered {
+      background-color: #e8f4fd !important;
+      border-left: 4px solid #3b82f6 !important;
+    }
     button {
-      padding: 8px 16px;
+      padding: 10px 20px;
       margin: 5px 3px 5px 0;
       cursor: pointer;
       border: none;
       border-radius: 6px;
       font-size: 14px;
+      font-weight: 600;
       transition: all 0.2s;
     }
     button:hover {
@@ -79,15 +83,15 @@
       transform: translateY(0);
     }
     .btn-add {
-      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      background: linear-gradient(135deg, #065f46 0%, #047857 100%);
       color: white;
     }
     .btn-delete {
-      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      background: linear-gradient(135deg, #991b1b 0%, #b91c1c 100%);
       color: white;
     }
     .btn-edit {
-      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      background: linear-gradient(135deg, #92400e 0%, #b45309 100%);
       color: white;
     }
     .actions-cell {
@@ -96,6 +100,10 @@
     .info-text {
       font-size: 14px;
       line-height: 1.4;
+      color: black;
+    }
+    td {
+      color: black;
     }
     .footer {
       text-align: center;
@@ -159,12 +167,12 @@
     
     <!-- Footer -->
     <div class="footer">
-      <a href="/health">Check Health Status</a> | 
-      <a href="/static/data.js">View Source Code</a>
+      <a href="/health">Check Health Status</a> |
+      <a href="/data.js">View Source Code</a>
     </div>
   </div>
 
   <!-- Load the main JavaScript file -->
-  <script src="/static/data.js"></script>
+  <script src="/data.js"></script>
 </body>
 </html>
