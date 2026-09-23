@@ -18,5 +18,10 @@
     "id": 5,
     "date": "9/22/2026",
     "information": "My new entry is cool."
+  },
+  {
+    "id": 6,
+    "date": "9/23/2026",
+    "information": "Looking at the code quality"
   }
 ]
